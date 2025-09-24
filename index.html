@@ -23,6 +23,7 @@
   </script>
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
   <style>
+    :root{ color-scheme: dark; } /* OS koyu form kontrollerine ipucu */
     html,body{height:100%}
     body{
       background:
@@ -32,16 +33,34 @@
       color:#e6edf6;
     }
     .glass{ backdrop-filter: blur(10px); background: rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.08) }
-    .card{ @apply rounded-2xl p-6 glass; }
-    .inp{ @apply w-full px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-white placeholder-white/40 outline-none focus:ring-2 focus:ring-brand2/70; }
-    .sel{ @apply w-full px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-white outline-none focus:ring-2 focus:ring-brand2/70; }
-    .btn{ @apply inline-flex items-center justify-center px-5 py-2.5 rounded-xl font-semibold shadow-lg transition; background: linear-gradient(90deg, #ff6a3a, #00e0ff); color:#08111f;}
-    .btn:hover{ filter: brightness(1.05); transform: translateY(-1px);}
-    .muted{ @apply text-white/60 }
-    .grid-cards{ @apply grid gap-4 md:grid-cols-2 }
+    .card{ border-radius:1rem; padding:1.5rem; }
+    .inp{ width:100%; padding:.5rem .75rem; border-radius:.75rem; background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.1); color:#fff; outline:none }
+    .inp::placeholder{ color:rgba(255,255,255,.4) }
+    .inp:focus{ box-shadow:0 0 0 2px rgba(0,224,255,.6) inset }
+    .sel{ width:100%; padding:.5rem .75rem; border-radius:.75rem; background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.1); color:#fff; outline:none }
+    .sel:focus{ box-shadow:0 0 0 2px rgba(0,224,255,.6) inset }
+
+    /* 💡 Açılır listede okunabilirlik (beyaz zeminde koyu yazı) */
+    select.sel option,
+    select.sel optgroup{
+      color:#0b1220;            /* koyu metin  */
+      background:#ffffff;       /* beyaz zemin */
+    }
+
+    .btn{
+      display:inline-flex; align-items:center; justify-content:center;
+      padding:.65rem 1.25rem; border-radius:.9rem; font-weight:700;
+      background: linear-gradient(90deg, #ff6a3a, #00e0ff); color:#08111f;
+      box-shadow: 0 10px 25px rgba(0,224,255,.15);
+      transition: transform .12s ease, filter .12s ease;
+    }
+    .btn:hover{ filter:brightness(1.05); transform:translateY(-1px); }
+    .muted{ color:rgba(255,255,255,.6) }
+    .grid-cards{ display:grid; gap:1rem }
+    @media (min-width: 768px){ .grid-cards{ grid-template-columns: repeat(2,minmax(0,1fr)); } }
     .title-grad{ background: linear-gradient(90deg,#fff 0%, #b6f3ff 60%, #7de2ff 100%); -webkit-background-clip: text; background-clip:text; color:transparent; }
-    .chip{ @apply inline-flex items-center gap-2 px-3 py-1 rounded-full text-sm bg-white/10 border border-white/10; }
-    .raw{ @apply text-xs text-white/60 mt-2 }
+    .chip{ display:inline-flex; align-items:center; gap:.35rem; padding:.25rem .6rem; border-radius:9999px; font-size:.9rem; background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.1) }
+    .raw{ font-size:.8rem; color:rgba(255,255,255,.6); margin-top:.4rem }
   </style>
 </head>
 <body class="font-sans">
@@ -56,7 +75,7 @@
   <!-- MAIN -->
   <main class="max-w-6xl mx-auto px-4 pb-16 space-y-6">
     <!-- Controls -->
-    <section class="card">
+    <section class="card glass">
       <div class="grid gap-4 md:grid-cols-2">
         <div>
           <label class="block text-sm font-medium mb-1">Bonus</label>
@@ -106,7 +125,7 @@
     <section id="results" class="space-y-4"></section>
   </main>
 
-  <!-- SCRIPTS (calculator engine: same logic) -->
+  <!-- SCRIPTS (calculator engine) -->
   <script>
   // ====== utils ======
   const TL = n => new Intl.NumberFormat('tr-TR').format(Math.floor(n)) + " TL";
@@ -206,20 +225,20 @@
     const resultsDiv=document.getElementById("results"); resultsDiv.innerHTML=""; document.getElementById("status").textContent="";
     const gift=birthdayGift(preset);
     if(gift!=null && !percentIn){
-      resultsDiv.innerHTML=`<div class="card"><div class="text-lg font-semibold">🎉 Doğum Günü</div><div class="mt-2">🎁 Hediye: <b>${TL(gift)}</b> — ✅ Çevrim yok.</div>${preset.min_deposit?`<div class="mt-2 muted text-sm">Min. yatırım şartı: ${preset.min_deposit}</div>`:""}${preset.notes?`<div class="mt-2 muted text-sm">Not: ${preset.notes}</div>`:""}</div>`; return;
+      resultsDiv.innerHTML=`<div class="card glass"><div class="text-lg font-semibold">🎉 Doğum Günü</div><div class="mt-2">🎁 Hediye: <b>${TL(gift)}</b> — ✅ Çevrim yok.</div>${preset.min_deposit?`<div class="mt-2 muted text-sm">Min. yatırım şartı: ${preset.min_deposit}</div>`:""}${preset.notes?`<div class="mt-2 muted text-sm">Not: ${preset.notes}</div>`:""}</div>`; return;
     }
-    if(!deposit){ document.getElementById("status").textContent="Lütfen yatırım gir."; return; }
+    if(!deposit){ document.getElementById("status").textContent="Lütfen yatırım girin."; return; }
     const icon={spor:"⚽",casino:"🎰",slot:"🧩",ucak:"✈️"};
     const mindep=parseMinDepositValue(preset.min_deposit);
     function renderCards(pairs, header){
       const cards=pairs.map(([dom,r])=>{
-        if(r.error) return `<div class="card"><div class="font-semibold">${icon[dom]} ${dom.toUpperCase()}</div><div class="mt-2 text-rose-400">${r.error}</div></div>`;
+        if(r.error) return `<div class="card glass"><div class="font-semibold">${icon[dom]} ${dom.toUpperCase()}</div><div class="mt-2 text-rose-300">${r.error}</div></div>`;
         const chips=[ preset.min_deposit?`<span class="chip">Min: ${preset.min_deposit}</span>`:"", preset.max_bonus?`<span class="chip">Max bonus: ${preset.max_bonus}</span>`:"", preset.max_withdraw?`<span class="chip">Max çekim: ${preset.max_withdraw}</span>`:"" ].filter(Boolean).join(" ");
         const combo=r.combo?`<div class="raw">Kombine: Yatırım×${r.combo[0]} + Bonus×${r.combo[1]}</div>`:"";
         const raw=r.rule_raw?`<div class="raw">🧩 ${r.rule_raw}</div>`:"";
-        return `<div class="card"><div class="font-semibold">${icon[dom]} ${dom.toUpperCase()}</div><div class="mt-2">Baz: <b>${TL(r.base)}</b> • x${r.multiplier||"—"} → ✅ <b>${TL(r.required)}</b></div><div class="mt-2 flex flex-wrap gap-2">${chips}</div>${combo}${raw}</div>`;
+        return `<div class="card glass"><div class="font-semibold">${icon[dom]} ${dom.toUpperCase()}</div><div class="mt-2">Baz: <b>${TL(r.base)}</b> • x${r.multiplier||"—"} → ✅ <b>${TL(r.required)}</b></div><div class="mt-2 flex flex-wrap gap-2">${chips}</div>${combo}${raw}</div>`;
       }).join("");
-      resultsDiv.innerHTML = `<div class="card"><div class="text-lg font-semibold">${header.title}</div><div class="muted">${header.subtitle}</div></div><div class="grid-cards">${cards}</div>${mindep && deposit<mindep ? `<div class="muted text-sm">⚠️ Min. yatırım ${TL(mindep)} (girilen ${TL(deposit)} altında)</div>`:""}`;
+      resultsDiv.innerHTML = `<div class="card glass"><div class="text-lg font-semibold">${header.title}</div><div class="muted">${header.subtitle}</div></div><div class="grid-cards">${cards}</div>${mindep && deposit<mindep ? `<div class="muted text-sm">⚠️ Min. yatırım ${TL(mindep)} (girilen ${TL(deposit)} altında)</div>`:""}`;
     }
 
     // 3 Yatırım modu
