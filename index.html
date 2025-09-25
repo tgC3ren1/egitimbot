@@ -13,17 +13,14 @@
       theme: {
         extend: {
           fontFamily: { sans: ['Inter', 'ui-sans-serif', 'system-ui'] },
-          colors: {
-            brand1: '#ff6a3a', /* logo turuncu */
-            brand2: '#00e0ff', /* logo camgöbeği */
-          },
+          colors: { brand1:'#ff6a3a', brand2:'#00e0ff' }
         }
       }
     }
   </script>
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
   <style>
-    :root{ color-scheme: dark; } /* OS koyu form kontrollerine ipucu */
+    :root{ color-scheme: dark; }
     html,body{height:100%}
     body{
       background:
@@ -34,19 +31,14 @@
     }
     .glass{ backdrop-filter: blur(10px); background: rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.08) }
     .card{ border-radius:1rem; padding:1.5rem; }
-    .inp{ width:100%; padding:.5rem .75rem; border-radius:.75rem; background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.1); color:#fff; outline:none }
-    .inp::placeholder{ color:rgba(255,255,255,.4) }
-    .inp:focus{ box-shadow:0 0 0 2px rgba(0,224,255,.6) inset }
-    .sel{ width:100%; padding:.5rem .75rem; border-radius:.75rem; background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.1); color:#fff; outline:none }
-    .sel:focus{ box-shadow:0 0 0 2px rgba(0,224,255,.6) inset }
-
-    /* 💡 Açılır listede okunabilirlik (beyaz zeminde koyu yazı) */
-    select.sel option,
-    select.sel optgroup{
-      color:#0b1220;            /* koyu metin  */
-      background:#ffffff;       /* beyaz zemin */
+    .inp,.sel{
+      width:100%; padding:.5rem .75rem; border-radius:.75rem;
+      background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.1); color:#fff; outline:none;
     }
-
+    .inp::placeholder{ color:rgba(255,255,255,.4) }
+    .inp:focus,.sel:focus{ box-shadow:0 0 0 2px rgba(0,224,255,.6) inset }
+    /* Açılır listede okunabilirlik */
+    select.sel option, select.sel optgroup{ color:#0b1220; background:#fff; }
     .btn{
       display:inline-flex; align-items:center; justify-content:center;
       padding:.65rem 1.25rem; border-radius:.9rem; font-weight:700;
@@ -125,7 +117,7 @@
     <section id="results" class="space-y-4"></section>
   </main>
 
-  <!-- SCRIPTS (calculator engine) -->
+  <!-- SCRIPTS -->
   <script>
   // ====== utils ======
   const TL = n => new Intl.NumberFormat('tr-TR').format(Math.floor(n)) + " TL";
@@ -167,7 +159,13 @@
     } return null;
   }
   function percentDefaultOverride(p){ const n=fold((p.short||p.title||"")); if(n.includes("ilk yatirim")) return 100; return null; }
-  function percentSpecificOverride(p){ const n=fold((p.short||p.title||"")); if(n.includes("ayricalikli")&&n.includes("gun")) return 25; if(n.includes("challenge")) return 25; return null; }
+  function percentSpecificOverride(p){
+    const n=fold((p.short||p.title||""));
+    if(n.includes("ayricalikli")&&n.includes("gun")) return 25;
+    if(n.includes("challenge")) return 25;
+    if(n.includes("her gun bonus")) return 100; /* Her Gün Bonus varsayılan %100 */
+    return null;
+  }
   function percentFromTieredNotes(p,deposit){
     const notes=p.notes||""; if(!notes) return null; const t=notes.replace(/[—–]/g,"-"); const ranges=[];
     for(const m of t.matchAll(/(\d[\d\.\,]*)\s*-\s*(\d[\d\.\,]*)[^%]*%\s*(\d{1,3})/g)){ ranges.push({lo:toNumber(m[1]),hi:toNumber(m[2]),pc:+m[3]}); }
@@ -181,16 +179,51 @@
   // ====== compute ======
   function parseMaxBonusValue(s){ if(!s) return null; const t=s.trim().toLowerCase(); if(t.includes("limit yok")||t.includes("limitsiz")||t==="-" ) return null; const v=toNumber(t); return v>0?v:null; }
   function parseMinDepositValue(s){ const v=toNumber(s); return v>0?v:null; }
-  function computeWithBonus(preset,domain,deposit,bonusAmount){
+
+  function computeWithBonus(preset,domain,deposit,bonusAmount,opts={}){
     const rule=preset.rules[domain]; if(!rule||rule.basis==="NONE") return {error:`Bu bonus '${domain}' alanında geçersiz.`};
-    const maxB=parseMaxBonusValue(preset.max_bonus); if(maxB!=null && bonusAmount>maxB) bonusAmount=maxB;
+    // Max bonus tavanı (CSV + ekstra kural)
+    let bonusCap = parseMaxBonusValue(preset.max_bonus);
+    if(opts.extraBonusCap!=null){ bonusCap = (bonusCap==null) ? opts.extraBonusCap : Math.min(bonusCap, opts.extraBonusCap); }
+    if(bonusCap!=null && bonusAmount>bonusCap) bonusAmount=bonusCap;
+
     let base=0,mult=0,required=0,combo=null;
-    if(rule.basis==="COMBO"){ required=(deposit*(rule.dep_mult||0))+(bonusAmount*(rule.bonus_mult||0)); base=deposit+bonusAmount; combo=[rule.dep_mult,rule.bonus_mult]; }
-    else{ mult=+rule.multiplier; if(mult===0){ base=0; required=0; } else { if(rule.basis==="BONUS") base=bonusAmount; else if(rule.basis==="DEPOSIT") base=deposit; else base=deposit+bonusAmount; required=base*mult; } }
+    if(rule.basis==="COMBO"){
+      required=(deposit*(rule.dep_mult||0))+(bonusAmount*(rule.bonus_mult||0));
+      base=deposit+bonusAmount; combo=[rule.dep_mult,rule.bonus_mult];
+    }else{
+      mult=+rule.multiplier;
+      if(mult===0){ base=0; required=0; }
+      else{
+        if(rule.basis==="BONUS"){ base=bonusAmount; }
+        else if(rule.basis==="DEPOSIT"){ base=deposit; }
+        else { // DEPOSIT_PLUS_BONUS
+          let depPart = deposit;
+          // Yatırım FS: yatırım katkısı max 1.000 TL
+          const isYatirimFS = fold(preset.short+preset.title).includes("yatirim fs");
+          if(isYatirimFS && opts.capDepositPart!=null) depPart = Math.min(depPart, opts.capDepositPart);
+          base = depPart + bonusAmount;
+        }
+        required = base * mult;
+      }
+    }
     return {domain,deposit:Math.floor(deposit),bonus:Math.floor(bonusAmount),base:Math.floor(base),multiplier:mult,required:Math.floor(required),rule_raw:rule.raw,combo};
   }
-  function computePercent(preset,domain,deposit,percent){ let bonus=deposit*(percent/100); const maxB=parseMaxBonusValue(preset.max_bonus); if(maxB!=null&&bonus>maxB) bonus=maxB; return computeWithBonus(preset,domain,deposit,bonus); }
-  function computeAll(preset,deposit,resolver){ const out=[]; for(const dom of ["spor","casino","slot","ucak"]){ const r=preset.rules[dom]; if(!r||r.basis==="NONE") continue; out.push([dom,resolver(dom)]);} return out; }
+
+  function computePercent(preset,domain,deposit,percent,opts={}){
+    let bonus=deposit*(percent/100);
+    // ekstra tavan (ör. Her Gün Bonus 2.000 TL)
+    let cap = parseMaxBonusValue(preset.max_bonus);
+    if(opts.extraBonusCap!=null){ cap = (cap==null)?opts.extraBonusCap:Math.min(cap, opts.extraBonusCap); }
+    if(cap!=null && bonus>cap) bonus=cap;
+    return computeWithBonus(preset,domain,deposit,bonus,opts);
+  }
+
+  function computeAll(preset,deposit,resolver){
+    const out=[]; for(const dom of ["spor","casino","slot","ucak"]){
+      const r=preset.rules[dom]; if(!r||r.basis==="NONE") continue; out.push([dom,resolver(dom)]);
+    } return out;
+  }
 
   // ====== CSV load ======
   const state={presets:{},order:[]};
@@ -198,74 +231,126 @@
   function buildPresets(rows){
     const col = name => Object.keys(rows[0]).find(c=>fold(c)===fold(name)) || Object.keys(rows[0]).find(c=>fold(c).includes(fold(name)));
     const C={ title:col("Bonus Adı"), short:col("Kısa İsim"), spor:col("Spor Çevirim"), casino:col("Casino Çevirim"), slot:col("Slot Çevirim"),
-      ucak: col("Uçak / Özel Oyun Çevirim")||col("Uçak Oyunu")||col("Uçak"), min:col("Min. Yatırım"), maxb:col("Yatırım / Max. Bonus")||col("Max. Bonus"), maxw:col("Max. Çekim"), notes:col("Özel Kurallar") };
+      ucak: col("Uçak / Özel Oyun Çevirim")||col("Uçak Oyunu")||col("Uçak"),
+      min:col("Min. Yatırım"), maxb:col("Yatırım / Max. Bonus")||col("Max. Bonus"), maxw:col("Max. Çekim"), notes:col("Özel Kurallar") };
     const presets={}, order=[];
     for(const r of rows){
       const p={ title:r[C.title]||"", short:(r[C.short]||r[C.title]||"").toString().trim(),
         rules:{ spor:parseRuleCell(r[C.spor]), casino:parseRuleCell(r[C.casino]), slot:parseRuleCell(r[C.slot]), ucak:parseRuleCell(r[C.ucak]) },
         min_deposit:(r[C.min]||"").toString().trim()||null, max_bonus:(r[C.maxb]||"").toString().trim()||null, max_withdraw:(r[C.maxw]||"").toString().trim()||null, notes:(r[C.notes]||"").toString().trim()||null };
       presets[p.short]=p; order.push(p.short);
-    } state.presets=presets; state.order=order.sort((a,b)=>fold(a).localeCompare(fold(b)));
+    }
+    state.presets=presets; state.order=order.sort((a,b)=>{
+      const aa=(presets[a].title||a), bb=(presets[b].title||b);
+      return fold(aa).localeCompare(fold(bb));
+    });
   }
-  function fillBonusSelect(){ const sel=document.getElementById("bonus"); sel.innerHTML=state.order.map(k=>`<option value="${k}">${k}</option>`).join(""); sel.dispatchEvent(new Event("change")); }
+
+  function fillBonusSelect(){
+    const sel=document.getElementById("bonus");
+    sel.innerHTML=state.order.map(k=>{
+      const p=state.presets[k]; const label=p.title||p.short||k;
+      return `<option value="${k}">${label}</option>`;
+    }).join("");
+    sel.dispatchEvent(new Event("change"));
+  }
 
   // ====== UI handlers ======
   document.getElementById("bonus").addEventListener("change", e=>{
-    const key=e.target.value; const isThree=fold(key).includes("3 yatirim");
+    const key=e.target.value;
+    const preset=state.presets[key];
+    const isThree=fold(preset.short+preset.title).includes("3 yatirim");
     document.getElementById("threeBox").classList.toggle("hidden", !isThree);
+
+    // Doğum Günü seçilince otomatik 1000 TL
+    const isBday = fold(preset.short+preset.title).includes("dogum") && fold(preset.short+preset.title).includes("gun");
+    if(isBday){ document.getElementById("winnings").value = "1000"; }
   });
 
   document.getElementById("calc").addEventListener("click", ()=>{
     const key=document.getElementById("bonus").value;
     const preset=state.presets[key]; if(!preset) return;
+
     const domain=document.getElementById("domain").value;
     const percentIn=parsePercentInput(document.getElementById("percent").value);
     const winningsIn=toNumber(document.getElementById("winnings").value);
     const deposit=toNumber(document.getElementById("deposit").value);
     const resultsDiv=document.getElementById("results"); resultsDiv.innerHTML=""; document.getElementById("status").textContent="";
-    const gift=birthdayGift(preset);
-    if(gift!=null && !percentIn){
-      resultsDiv.innerHTML=`<div class="card glass"><div class="text-lg font-semibold">🎉 Doğum Günü</div><div class="mt-2">🎁 Hediye: <b>${TL(gift)}</b> — ✅ Çevrim yok.</div>${preset.min_deposit?`<div class="mt-2 muted text-sm">Min. yatırım şartı: ${preset.min_deposit}</div>`:""}${preset.notes?`<div class="mt-2 muted text-sm">Not: ${preset.notes}</div>`:""}</div>`; return;
-    }
-    if(!deposit){ document.getElementById("status").textContent="Lütfen yatırım girin."; return; }
-    const icon={spor:"⚽",casino:"🎰",slot:"🧩",ucak:"✈️"};
-    const mindep=parseMinDepositValue(preset.min_deposit);
-    function renderCards(pairs, header){
-      const cards=pairs.map(([dom,r])=>{
-        if(r.error) return `<div class="card glass"><div class="font-semibold">${icon[dom]} ${dom.toUpperCase()}</div><div class="mt-2 text-rose-300">${r.error}</div></div>`;
-        const chips=[ preset.min_deposit?`<span class="chip">Min: ${preset.min_deposit}</span>`:"", preset.max_bonus?`<span class="chip">Max bonus: ${preset.max_bonus}</span>`:"", preset.max_withdraw?`<span class="chip">Max çekim: ${preset.max_withdraw}</span>`:"" ].filter(Boolean).join(" ");
-        const combo=r.combo?`<div class="raw">Kombine: Yatırım×${r.combo[0]} + Bonus×${r.combo[1]}</div>`:"";
-        const raw=r.rule_raw?`<div class="raw">🧩 ${r.rule_raw}</div>`:"";
-        return `<div class="card glass"><div class="font-semibold">${icon[dom]} ${dom.toUpperCase()}</div><div class="mt-2">Baz: <b>${TL(r.base)}</b> • x${r.multiplier||"—"} → ✅ <b>${TL(r.required)}</b></div><div class="mt-2 flex flex-wrap gap-2">${chips}</div>${combo}${raw}</div>`;
-      }).join("");
-      resultsDiv.innerHTML = `<div class="card glass"><div class="text-lg font-semibold">${header.title}</div><div class="muted">${header.subtitle}</div></div><div class="grid-cards">${cards}</div>${mindep && deposit<mindep ? `<div class="muted text-sm">⚠️ Min. yatırım ${TL(mindep)} (girilen ${TL(deposit)} altında)</div>`:""}`;
+
+    const isBday = !!birthdayGift(preset);            // Doğum Günü
+    const isDaily = fold(preset.short+preset.title).includes("her gun bonus"); // Her Gün Bonus
+    const isYatirimFS = fold(preset.short+preset.title).includes("yatirim fs");
+
+    // Doğum Günü – hediye 1000, çevrim yok
+    if(isBday){
+      const gift=1000;
+      resultsDiv.innerHTML = `
+        <div class="card glass">
+          <div class="text-lg font-semibold">🎉 ${preset.title || preset.short}</div>
+          <div class="mt-2">🎁 Hediye: <b>${TL(gift)}</b> — ✅ Çevrim yok.</div>
+          <div class="mt-2">🎯 Slot alanında <b>2.500 TL</b> yapıp çekebilir.</div>
+          <div class="muted text-sm mt-2">📝 Son 3 ayda en az <b>1.000 TL</b> yatırımı olması gereklidir.</div>
+        </div>`;
+      return;
     }
 
-    // 3 Yatırım modu
-    if(fold(key).includes("3 yatirim")){
-      const t=fold(document.getElementById("three").value); let total=0,avg=0;
-      if(t.includes("toplam")){ const v=parseNumbersFree(document.getElementById("three").value)[0]||0; total=v; avg=v/3; }
-      else{
-        const arr=parseNumbersFree(document.getElementById("three").value).slice(0,3);
-        if(arr.length>=3){ total=arr[0]+arr[1]+arr[2]; avg=total/3; } else if(arr.length>=1){ avg=arr[0]; total=avg*3; }
-      }
-      if(!avg){ document.getElementById("status").textContent="3 yatırım gir (3 sayı veya 'toplam X')."; return; }
-      const resolver=dom=>computeWithBonus(preset,dom,total,avg);
-      const pairs=(domain==="all")?computeAll(preset,total,resolver):[[domain,resolver(domain)]];
-      renderCards(pairs,{title:`${key} — 3 Yatırım`, subtitle:`Toplam: ${TL(total)} • Ortalama (bonus): ${TL(avg)}`}); return;
+    // Yatırım boşsa uyar
+    if(!deposit){ document.getElementById("status").textContent="Lütfen yatırım girin."; return; }
+
+    const icon={spor:"⚽",casino:"🎰",slot:"🧩",ucak:"✈️"};
+    const mindep=parseMinDepositValue(preset.min_deposit);
+
+    function renderCards(pairs, header, extraNoteHTML=""){
+      const cards=pairs.map(([dom,r])=>{
+        if(r.error) return `<div class="card glass"><div class="font-semibold">${icon[dom]} ${dom.toUpperCase()}</div><div class="mt-2 text-rose-300">${r.error}</div></div>`;
+        const chips=[
+          preset.min_deposit?`<span class="chip">Min: ${preset.min_deposit}</span>`:"",
+          preset.max_bonus?`<span class="chip">Max bonus: ${preset.max_bonus}</span>`:"",
+          preset.max_withdraw?`<span class="chip">Max çekim: ${preset.max_withdraw}</span>`:""
+        ].filter(Boolean).join(" ");
+        const combo=r.combo?`<div class="raw">Kombine: Yatırım×${r.combo[0]} + Bonus×${r.combo[1]}</div>`:"";
+        const raw=r.rule_raw?`<div class="raw">🧩 ${r.rule_raw}</div>`:"";
+        return `<div class="card glass">
+          <div class="font-semibold">${icon[dom]} ${dom.toUpperCase()}</div>
+          <div class="mt-2">Baz: <b>${TL(r.base)}</b> • x${r.multiplier||"—"} → ✅ <b>${TL(r.required)}</b></div>
+          <div class="mt-2 flex flex-wrap gap-2">${chips}</div>
+          ${combo}${raw}
+        </div>`;
+      }).join("");
+      resultsDiv.innerHTML = `
+        <div class="card glass">
+          <div class="text-lg font-semibold">${header.title}</div>
+          <div class="muted">${header.subtitle}</div>
+          ${extraNoteHTML}
+        </div>
+        <div class="grid-cards">${cards}</div>
+        ${mindep && deposit<mindep ? `<div class="muted text-sm">⚠️ Min. yatırım ${TL(mindep)} (girilen ${TL(deposit)} altında)</div>`:""}
+      `;
     }
 
     // Öncelik: winnings → percent → heuristics
+    const optsBase = {
+      extraBonusCap: isDaily ? 2000 : null,              // Her Gün Bonus: max 2.000 TL
+      capDepositPart: isYatirimFS ? 1000 : null          // Yatırım FS: yatırım katkısı max 1.000 TL
+    };
+
     if(winningsIn>0){
-      const resolver=dom=>computeWithBonus(preset,dom,deposit,winningsIn);
+      const resolver=dom=>computeWithBonus(preset,dom,deposit,winningsIn,optsBase);
       const pairs=(domain==="all")?computeAll(preset,deposit,resolver):[[domain,resolver(domain)]];
-      renderCards(pairs,{title:`${key} — Kazanç/Bonus: ${TL(winningsIn)}`, subtitle:`Yatırım: ${TL(deposit)}`}); return;
+      const title = `${preset.title || preset.short} — Kazanç/Bonus: ${TL(winningsIn)}${isYatirimFS?' (Yatırım katkısı max 1.000 TL)':''}`;
+      const note = isYatirimFS ? `<div class="raw mt-2">ℹ️ Yatırım kısmı en fazla <b>1.000 TL</b> olarak baz alınır.</div>` : "";
+      renderCards(pairs,{title, subtitle:`Yatırım: ${TL(deposit)}`}, note);
+      return;
     }
+
     let pct = percentIn ?? percentSpecificOverride(preset) ?? percentDefaultOverride(preset) ?? percentFromTitleOrShort(preset) ?? percentFromTieredNotes(preset,deposit);
     if(pct==null){ document.getElementById("status").textContent="Yüzde bulunamadı — yüzde yazın ya da 'Kazanç/Bonus TL' girin."; return; }
-    const resolver=dom=>computePercent(preset,dom,deposit,pct);
+
+    const resolver=dom=>computePercent(preset,dom,deposit,pct,optsBase);
     const pairs=(domain==="all")?computeAll(preset,deposit,resolver):[[domain,resolver(domain)]];
-    renderCards(pairs,{title:`${key} — %${parseInt(pct)}`, subtitle:`Yatırım: ${TL(deposit)}`});
+    const title = `${preset.title || preset.short} — %${parseInt(pct)}${isDaily?' (Max 2.000 TL)':''}${isYatirimFS?' (Yatırım katkısı max 1.000 TL)':''}`;
+    const note = isYatirimFS ? `<div class="raw mt-2">ℹ️ Yatırım kısmı en fazla <b>1.000 TL</b> olarak baz alınır.</div>` : "";
+    renderCards(pairs,{title, subtitle:`Yatırım: ${TL(deposit)}`}, note);
   });
 
   (async function init(){
