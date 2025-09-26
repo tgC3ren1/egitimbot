@@ -2,353 +2,480 @@
 <html lang="tr">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Bonus Hesaplama • Pro</title>
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 128 128'><rect width='128' height='128' rx='24' fill='%230b1220'/><text x='50%' y='54%' dominant-baseline='middle' text-anchor='middle' font-size='80' font-family='Arial' fill='%23ff6a3a'>B</text></svg>">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Bonus Hesaplama • zbahis</title>
+  <link rel="icon" href="logo.png">
+  <!-- Fonts + Tailwind -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
-    tailwind.config = { theme: { extend: { fontFamily:{ sans:['Inter','ui-sans-serif','system-ui'] }, colors:{ brand1:'#ff6a3a', brand2:'#00e0ff', bg:'#0b1220', card:'#111a30' } } } }
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Inter', 'ui-sans-serif', 'system-ui'] },
+          colors: { brand1:'#ff6a3a', brand2:'#00e0ff' }
+        }
+      }
+    }
   </script>
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
   <style>
     :root{ color-scheme: dark; }
-    body{ background:
-      radial-gradient(1200px 600px at 10% -10%, rgba(255,106,58,.18), transparent 60%),
-      radial-gradient(900px 500px at 90% 10%, rgba(0,224,255,.14), transparent 60%),
-      linear-gradient(180deg, #0b1220 0%, #0e1628 100%);
+    html,body{height:100%}
+    body{
+      background:
+        radial-gradient(1200px 600px at 10% -10%, rgba(255,106,58,.18), transparent 60%),
+        radial-gradient(900px 500px at 90% 10%, rgba(0,224,255,.14), transparent 60%),
+        linear-gradient(180deg, #0b1220 0%, #0e1628 100%);
       color:#e6edf6;
     }
     .glass{ backdrop-filter: blur(10px); background: rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.08) }
-    .title-grad{ background: linear-gradient(90deg,#fff,#b6f3ff,#7de2ff); -webkit-background-clip:text; background-clip:text; color:transparent }
-    .chip{ display:inline-flex; align-items:center; gap:.35rem; padding:.25rem .6rem; border-radius:9999px; font-size:.75rem; background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.1) }
-    .inp, .sel{ width:100%; padding:.6rem .8rem; border-radius:.9rem; background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.1); color:#fff; outline:none }
-    .inp::placeholder{ color:rgba(255,255,255,.45) }
+    .card{ border-radius:1rem; padding:1.5rem; }
+    .inp,.sel{
+      width:100%; padding:.5rem .75rem; border-radius:.75rem;
+      background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.1); color:#fff; outline:none;
+    }
+    .inp::placeholder{ color:rgba(255,255,255,.4) }
     .inp:focus,.sel:focus{ box-shadow:0 0 0 2px rgba(0,224,255,.6) inset }
-    .btn{ display:inline-flex; align-items:center; justify-content:center; gap:.5rem; padding:.7rem 1.25rem; border-radius:1rem; font-weight:800; background:linear-gradient(90deg,#ff6a3a,#00e0ff); color:#08111f; box-shadow:0 10px 25px rgba(0,224,255,.15); }
     select.sel option, select.sel optgroup{ color:#0b1220; background:#fff; }
+    .btn{
+      display:inline-flex; align-items:center; justify-content:center;
+      padding:.65rem 1.25rem; border-radius:.9rem; font-weight:700;
+      background: linear-gradient(90deg, #ff6a3a, #00e0ff); color:#08111f;
+      box-shadow: 0 10px 25px rgba(0,224,255,.15);
+      transition: transform .12s ease, filter .12s ease;
+    }
+    .btn:hover{ filter:brightness(1.05); transform:translateY(-1px); }
+    .muted{ color:rgba(255,255,255,.6) }
+    .grid-cards{ display:grid; gap:1rem }
+    @media (min-width: 768px){ .grid-cards{ grid-template-columns: repeat(2,minmax(0,1fr)); } }
+    .title-grad{ background: linear-gradient(90deg,#fff 0%, #b6f3ff 60%, #7de2ff 100%); -webkit-background-clip: text; background-clip:text; color:transparent; }
+    .chip{ display:inline-flex; align-items:center; gap:.35rem; padding:.25rem .6rem; border-radius:9999px; font-size:.9rem; background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.1) }
+    .raw{ font-size:.8rem; color:rgba(255,255,255,.6); margin-top:.4rem }
+    /* LOGIN OVERLAY */
+    .login-bg{
+      position:fixed; inset:0; z-index:50;
+      background:
+        radial-gradient(1000px 500px at 10% -10%, rgba(255,106,58,.18), transparent 60%),
+        radial-gradient(900px 500px at 90% 10%, rgba(0,224,255,.14), transparent 60%),
+        linear-gradient(180deg, #09121f 0%, #0b1424 100%);
+      display:flex; align-items:center; justify-content:center;
+      padding:2rem;
+    }
+    .hidden{ display:none !important; }
   </style>
 </head>
 <body class="font-sans">
-  <!-- HEADER -->
-  <header class="max-w-6xl mx-auto px-4 pt-8 pb-4">
-    <div class="flex items-center gap-4">
-      <div class="h-10 w-10 grid place-items-center rounded-xl bg-white/10 border border-white/10 text-brand2 font-black">B</div>
-      <h1 class="text-2xl md:text-3xl font-extrabold title-grad tracking-tight">Bonus Hesaplama</h1>
-      <div class="ml-auto hidden md:flex items-center gap-2 text-xs text-white/70">
-        <span class="chip">Statik • GitHub Pages</span>
-        <span class="chip">Kurumsal arayüz</span>
+  <!-- ============ LOGIN OVERLAY ============ -->
+  <section id="loginOverlay" class="login-bg">
+    <div class="glass card w-full max-w-md">
+      <div class="flex items-center gap-3 mb-4">
+        <img src="logo.png" alt="zbahis" class="h-9 w-auto">
+        <h2 class="text-xl font-extrabold title-grad tracking-tight">Giriş Yap</h2>
       </div>
-    </div>
-  </header>
 
-  <!-- CONTROLS -->
-  <section class="max-w-6xl mx-auto px-4">
-    <div class="glass rounded-2xl p-5">
-      <div class="grid md:grid-cols-2 gap-4">
-        <div>
-          <label class="block text-sm mb-1">Bonus</label>
-          <select id="bonus" class="sel"></select>
-        </div>
-        <div>
-          <label class="block text-sm mb-1">Alan</label>
-          <select id="domain" class="sel">
-            <option value="all">Tümü (spor, casino, slot, uçak)</option>
-            <option value="spor">Spor</option>
-            <option value="casino">Casino</option>
-            <option value="slot">Slot</option>
-            <option value="ucak">Uçak / Özel Oyun</option>
-          </select>
-        </div>
-        <div>
-          <label class="block text-sm mb-1">Yatırım</label>
-          <input id="deposit" class="inp" placeholder="örn. 5000 veya 1.2k" inputmode="decimal">
-        </div>
-        <div>
-          <label class="block text-sm mb-1">Yüzde (opsiyonel)</label>
-          <input id="percent" class="inp" placeholder="%25 / 25 / yüzde 25" inputmode="decimal">
-          <p class="text-xs text-white/70 mt-1">Yazmazsan: İlk Yatırım %100, Ayrıcalıklı Gün & Challenge %25, Günlük Bonus %100.</p>
-        </div>
-        <div>
-          <label class="block text-sm mb-1">Kazanç/Bonus TL (opsiyonel)</label>
-          <input id="winnings" class="inp" placeholder="örn. 1200 (Bonus Buy/Freespin için önerilir)" inputmode="decimal">
-        </div>
+      <p class="muted text-sm mb-4">Lütfen kullanıcı adı ve şifrenizi girin.</p>
 
-        <!-- 3 yatırım -->
-        <div id="threeBox" class="hidden">
-          <label class="block text-sm mb-2">3 Yatırım (ortalama hediye hesaplanır)</label>
-          <div class="grid grid-cols-1 md:grid-cols-3 gap-2">
-            <input id="three1" class="inp" placeholder="1. Yatırım (örn. 1000)" inputmode="decimal">
-            <input id="three2" class="inp" placeholder="2. Yatırım (örn. 2000)" inputmode="decimal">
-            <input id="three3" class="inp" placeholder="3. Yatırım (örn. 3000)" inputmode="decimal">
+      <div class="space-y-3">
+        <div>
+          <label class="block text-sm font-medium mb-1" for="loginUser">Kullanıcı Adı</label>
+          <input id="loginUser" class="inp" placeholder="örn. admin" autocomplete="username">
+        </div>
+        <div>
+          <label class="block text-sm font-medium mb-1" for="loginPass">Şifre</label>
+          <div class="relative">
+            <input id="loginPass" type="password" class="inp pr-11" placeholder="••••••••" autocomplete="current-password">
+            <button id="togglePass" class="absolute right-2 top-1/2 -translate-y-1/2 text-sm muted hover:opacity-80" tabindex="-1">Göster</button>
           </div>
-          <p class="text-xs text-white/70 mt-2">Bu bonus için <b>3 yatırımı</b> girin; ortalaması hediye olarak kabul edilir (kampanya tavanlarına tabidir).</p>
         </div>
+        <div class="flex items-center justify-between">
+          <label class="inline-flex items-center gap-2 text-sm">
+            <input id="rememberMe" type="checkbox" class="accent-cyan-400">
+            <span>Beni hatırla</span>
+          </label>
+          <span id="loginStatus" class="text-sm text-rose-300"></span>
+        </div>
+        <button id="loginBtn" class="btn w-full">Giriş Yap</button>
       </div>
 
-      <div class="mt-5 flex items-center gap-3">
-        <button id="calc" class="btn"><span>Hesapla</span></button>
-        <span id="status" class="text-sm text-white/70"></span>
+      <div class="mt-4 text-xs muted">
+        İpucu: <code>admin / admin</code> (JS içinde değiştirilebilir).
       </div>
     </div>
   </section>
 
-  <!-- RESULTS -->
-  <main id="results" class="max-w-6xl mx-auto px-4 py-6 space-y-4"></main>
+  <!-- ============ APP (GİRİŞTEN SONRA AÇILIR) ============ -->
+  <div id="app" class="hidden">
+    <!-- HEADER -->
+    <header class="max-w-6xl mx-auto px-4 pt-8 pb-4">
+      <div class="flex items-center gap-4">
+        <img src="logo.png" alt="zbahis" class="h-10 w-auto select-none">
+        <h1 class="text-2xl md:text-3xl font-extrabold title-grad tracking-tight">Bonus Hesaplama</h1>
+      </div>
+    </header>
 
-  <footer class="max-w-6xl mx-auto px-4 pb-10 text-center text-white/50 text-xs">© Bonus Hesaplama • Pro UI • GitHub Pages uyumlu</footer>
+    <!-- MAIN -->
+    <main class="max-w-6xl mx-auto px-4 pb-16 space-y-6">
+      <!-- Controls -->
+      <section class="card glass">
+        <div class="grid gap-4 md:grid-cols-2">
+          <div>
+            <label class="block text-sm font-medium mb-1">Bonus</label>
+            <select id="bonus" class="sel"></select>
+          </div>
 
-  <script>
-  // ======= Dataset (tam) =======
-  const PRESETS = [
-    { short:'Crypto %40', title:'%40 CRYPTO Yatırım Bonusu', rules:{ spor:'Yatırım+Bonus x5 (min 2 maç, her maç ≥1.60)', casino:"Yatırım+Bonus x10 (Hold'em, Blackjack, Rulet) — Baccarat hariç, Rulet max 17 sayı", slot:'Yatırım+Bonus x10', ucak:'Yatırım+Bonus x15 (Tombala, Zeplin, Plinko)' }, min_deposit:'100 TL', max_bonus:'100.000 TL', max_withdraw:'Yatırımın 20 katı', notes:'Kayıp bonusu ile birlikte alınamaz' },
-    { short:'Her Gün Bonus', title:'HAFTANIN HER GÜNÜ %100, 2.000 TL', rules:{ spor:'Yatırım+Bonus x5 (min 2 maç, ≥1.60, futbol & basketbol)', casino:"Yatırım+Bonus x20 (Hold'em, BJ, Rulet 1'e1 hariç; Baccarat yok; Rulet max 17 sayı)", slot:'Yatırım+Bonus x20', ucak:'—' }, min_deposit:'—', max_bonus:'2.000 TL', max_withdraw:'Bonus x10, max 20.000 TL', notes:'Diğer kampanyalarla birleştirilemez' },
-    { short:'%25 Limitsiz', title:'%25 LİMİTSİZ Yatırım Bonusu', rules:{ spor:'Yatırım+Bonus x3 (min 2 maç, ≥1.60)', casino:'Yatırım+Bonus x5 (oyun şovları, Baccarat vb. hariç)', slot:'Yatırım+Bonus x5', ucak:'Yatırım+Bonus x10 (Tombala, Plinko, Spaceman vb.)' }, min_deposit:'50 TL', max_bonus:'Limitsiz', max_withdraw:'—', notes:'Rulet max 17 sayı; birçok oyun hariç' },
-    { short:'3+1 Yatırım', title:'3 Yatırıma 1 Yatırım Bizden', rules:{ spor:'Bonus x10 (min 1.55, 2 maç)', casino:'Bonus x20', slot:'Bonus x20', ucak:'Bonus x30' }, min_deposit:'—', max_bonus:'2.500 TL', max_withdraw:'Bonus kazancının 7 katı', notes:'Son 3 yatırım ortalaması 4. yatırım olarak eklenir' },
-    { short:'Doğum Günü', title:'Çevrimsiz 1.000 TL Doğum Günü', rules:{ slot:'Çevrimsiz' }, min_deposit:'—', max_bonus:'—', max_withdraw:'2.500 TL', notes:'Son 3 ayda ≥1.000 TL yatırımı olmalı' },
-    { short:'Haftalık Kayıp', title:'Haftalık Kayıp Bonusu (%5–%10)', rules:{ spor:'Bonus x3 (min 2 maç, ≥1.50)', casino:'Bonus x3 (Rulet max 17 sayı, kırmızı/siyah/tek-çift hariç)', slot:'Bonus x3', ucak:'Bonus x5 (Raptor, Spaceman)' }, min_deposit:'Min. kayıp 2.500 TL', max_bonus:'15.000 TL', max_withdraw:'Bonus x10', notes:'Bakiyen 5 TL altı olmalı; Pazartesi talep' },
-    { short:'Yatırım FS', title:'Yatırıma Özel FreeSpin (50 FS)', rules:{ slot:'Bonus x25 (FS kazancı)', casino:'Bonus x25', ucak:'—', spor:'Bonus x7' }, min_deposit:'250 TL', max_bonus:'FS değeri 4/6/8/10 TL', max_withdraw:'Yatırım aralığına göre 1.000–5.000 TL', notes:'Gates of Olympus Super Scatter — 50 FS sabit' },
-    { short:'%200 Bonus Buy', title:'%200 Bonus Buy – Sweet Bonanza', rules:{ slot:'Yatırım+Bonus x25 (kazanç + yatırım baz alınır)' }, min_deposit:'—', max_bonus:'—', max_withdraw:'10.000 TL', notes:'Sadece slot, günde 1 kez' },
-    { short:'Referral', title:'Arkadaş Davet Bonusu (İlk %25 • İkinci %30)', rules:{ spor:'Bonus x3 (min 1.60, 3 maç kombine)', casino:'Bonus x20', slot:'Bonus x25' }, min_deposit:'Davetlin 2 onaylı yatırım (≥100 TL)', max_bonus:'1.000 TL + 1.500 TL', max_withdraw:'Bonus x10', notes:'Linkten kayıt, oyuna başlamadan başvuru' },
-    { short:'0x %10 Limitsiz', title:'0 ÇEVRİM %10 LİMİTSİZ Yatırım Bonusu', rules:{ spor:'Yatırım+Bonus x2 (min 2 maç, ≥1.50) — sanal hariç', casino:'Yatırım+Bonus x1', slot:'Yatırım+Bonus x1', ucak:'—' }, min_deposit:'50 TL', max_bonus:'Limitsiz', max_withdraw:'—', notes:'Birçok oyun hariç — listesi sayfada' },
-    { short:'5X Challenge', title:'DEV ETKİNLİK: Bakiyeni 5X Yap, 10X Çek', rules:{ slot:'Sadece slot — seçeneğe göre çekim: 5k/10k/20k' }, min_deposit:'500 / 1.000 / 2.000 TL seçenek', max_bonus:'—', max_withdraw:'5.000 / 10.000 / 20.000 TL', notes:'Payco/Kredi Kartı hariç; günde 1 kez' },
-    { short:'%200 FS 1000', title:'1.000 TL Yatırıma %200 Freespin (100 FS)', rules:{ slot:'Bonus x15 (yalnızca slot)' }, min_deposit:'1.000 TL', max_bonus:'100 FS (20 TL bet)', max_withdraw:'10.000 TL', notes:'Gates of Olympus Super Scatter' },
-    { short:'İlk Yatırım', title:'%200, 30.000 TL İlk Yatırım (2 kere %100, 15.000 TL)', rules:{ spor:'Yatırım x1', casino:'Bonus x40', slot:'Bonus x40', ucak:'—' }, min_deposit:'100 TL', max_bonus:'15.000 TL (her aşama)', max_withdraw:'50.000 TL', notes:'Baccarat, rulet kırmızı/siyah ve tek/çift sayılmaz' },
-    { short:'Ayrıcalıklı Gün', title:"5’i 15’i 25’i Ayrıcalıklı Günler %100 (5.000 TL)", rules:{ spor:'Yatırım+Bonus x5 (min 1.60, 3 maç)', casino:'Yatırım+Bonus x20', slot:'Yatırım+Bonus x25', ucak:'Min 1.45 çarpan' }, min_deposit:'500 TL', max_bonus:'5.000 TL', max_withdraw:'Bonus x10', notes:'Süre 7 gün, diğer promosyonlarla birleşmez' },
-    { short:'Anlık Kayıp %30', title:'%30 Otomatik Anlık Kayıp Bonusu', rules:{ slot:'Çevrimsiz', casino:'Çevrimsiz', spor:'Çevrimsiz' }, min_deposit:'Kayıp aralığına göre', max_bonus:'—', max_withdraw:'Discount 20x (500 TL üzeri)', notes:'Hesap bakiyesi ≤5 TL; aktif oyun olmamalı' }
-  ];
+          <div>
+            <label class="block text-sm font-medium mb-1">Alan (opsiyonel)</label>
+            <select id="domain" class="sel">
+              <option value="all">Tümü (spor, casino, slot, uçak)</option>
+              <option value="spor">Spor</option>
+              <option value="casino">Casino</option>
+              <option value="slot">Slot</option>
+              <option value="ucak">Uçak / Özel Oyun</option>
+            </select>
+          </div>
 
-  // ======= Utils =======
-  const TL = n => new Intl.NumberFormat('tr-TR').format(Math.floor(n)) + ' TL';
-  const fold = t => (t||'').toString().normalize('NFKD')
-    .replace(/[çÇ]/g,'c').replace(/[ğĞ]/g,'g').replace(/[ıİ]/g,'i')
-    .replace(/[öÖ]/g,'o').replace(/[şŞ]/g,'s').replace(/[üÜ]/g,'u')
-    .toLowerCase();
-  function toNumber(str){
-    if(!str) return 0;
-    let s=String(str).trim().toLowerCase().replace('tl','').replace('₺','');
-    if(/^\d+(\.\d+)?k$/.test(s)) return parseFloat(s)*1000;
-    s=s.replace(/\./g,'').replace(',', '.');
-    const m=s.match(/(\d+(?:\.\d+)?)/);
-    return m?parseFloat(m[1]):0;
-  }
-  function parsePercentInput(v){ if(!v) return null; const t=fold(v); const m=t.match(/%?\s*(\d{1,3})/); return m?parseFloat(m[1]):null; }
+          <div>
+            <label class="block text-sm font-medium mb-1">Yatırım</label>
+            <input id="deposit" class="inp" placeholder="örn. 5000 veya 1.2k" inputmode="decimal">
+          </div>
 
-  // kuralları metinden basitçe çıkarma
-  function parseRuleCellText(text){
-    const s=(text||'').toString().toLowerCase();
-    if(!s) return {basis:'NONE',multiplier:0,raw:text};
-    if(s.includes('çevrimsiz')) return {basis:'BONUS',multiplier:0,raw:text};
-    let m=s.match(/yat[ıi]r[ıi]m\+?bonus\s*x\s*(\d+)/);
-    if(m) return {basis:'DEPOSIT_PLUS_BONUS',multiplier:+m[1],raw:text};
-    if(s.includes('kazanç') && s.includes('yatırım') && /x\s*(\d+)/.test(s)){
-      const k=s.match(/x\s*(\d+)/);
-      return {basis:'DEPOSIT_PLUS_BONUS',multiplier:+(k?k[1]:0),raw:text};
-    }
-    m=s.match(/bonus\s*x\s*(\d+)/);
-    if(m) return {basis:'BONUS',multiplier:+m[1],raw:text};
-    m=s.match(/yat[ıi]r[ıi]m\s*x\s*(\d+)/);
-    if(m) return {basis:'DEPOSIT',multiplier:+m[1],raw:text};
-    return {basis:'NONE',multiplier:0,raw:text};
-  }
-  function percentHeuristic(p){
-    const n=fold(p.short+' '+p.title);
-    if(n.includes('ilk yatirim')) return 100;
-    if(n.includes('her gun')) return 100;
-    if(n.includes('limitsiz')) return 25;
-    if(n.includes('challenge')) return 25;
-    return null;
-  }
-  function parseMaxBonusValue(s){
-    if(!s) return null;
-    const t=s.trim().toLowerCase();
-    if(t.includes('limit yok')||t.includes('limitsiz')||t==='—') return null;
-    const v=toNumber(t); return v>0?v:null;
-  }
+          <div>
+            <label class="block text-sm font-medium mb-1">Yüzde (opsiyonel)</label>
+            <input id="percent" class="inp" placeholder="%25 / 25 / yüzde 25" inputmode="decimal">
+            <p class="muted text-xs mt-1">Yazmazsan: İlk Yatırım %100, Ayrıcalıklı Gün &amp; Challenge %25.</p>
+          </div>
 
-  // ======= Hesaplama =======
-  function computeWithBonus(preset,domain,deposit,bonusAmount){
-    const ruleTxt=(preset.rules||{})[domain]||'';
-    const rule=parseRuleCellText(ruleTxt);
-    if(rule.basis==='NONE') return {error:`Bu bonus '${domain}' alanında geçersiz.`};
+          <div>
+            <label class="block text-sm font-medium mb-1">Kazanç/Bonus TL (opsiyonel)</label>
+            <input id="winnings" class="inp" placeholder="örn. 1200 (Bonus Buy/Freespin için önerilir)" inputmode="decimal">
+          </div>
 
-    // bonus tavanı
-    let bonusCap = parseMaxBonusValue(preset.max_bonus);
-    if(bonusCap!=null && bonusAmount>bonusCap) bonusAmount=bonusCap;
-
-    let base=0, mult=+rule.multiplier||0, required=0;
-    if(mult===0){ base=0; required=0; }
-    else{
-      if(rule.basis==='BONUS') base=bonusAmount;
-      else if(rule.basis==='DEPOSIT') base=deposit;
-      else base=deposit+bonusAmount;  // Yatırım+Bonus
-      required = base * mult;
-    }
-    return {domain, deposit:Math.floor(deposit), bonus:Math.floor(bonusAmount), base:Math.floor(base), multiplier:mult, required:Math.floor(required), rule_raw:ruleTxt};
-  }
-  function computePercent(preset,domain,deposit,percent){
-    let bonus=deposit*(percent/100);
-    const cap=parseMaxBonusValue(preset.max_bonus);
-    if(cap!=null && bonus>cap) bonus=cap;
-    return computeWithBonus(preset,domain,deposit,bonus);
-  }
-  function computeAll(preset,deposit,resolver){
-    const out=[];
-    for(const dom of ['spor','casino','slot','ucak']){
-      const r=(preset.rules||{})[dom];
-      if(!r) continue;
-      out.push([dom,resolver(dom)]);
-    }
-    return out;
-  }
-
-  // ======= UI =======
-  const icon={spor:'⚽',casino:'🎰',slot:'🧩',ucak:'✈️'};
-  const $bonus=document.getElementById('bonus');
-  const $domain=document.getElementById('domain');
-  const $deposit=document.getElementById('deposit');
-  const $percent=document.getElementById('percent');
-  const $winnings=document.getElementById('winnings');
-  const $threeBox=document.getElementById('threeBox');
-  const $three1=document.getElementById('three1');
-  const $three2=document.getElementById('three2');
-  const $three3=document.getElementById('three3');
-  const $results=document.getElementById('results');
-  const $status=document.getElementById('status');
-
-  function fillBonusSelect(){
-    $bonus.innerHTML = PRESETS.map((p,i)=>`<option value="${i}">${p.title}</option>`).join('');
-    $bonus.dispatchEvent(new Event('change'));
-  }
-  function isThreeInvestmentPreset(p){
-    const s=fold((p.short||'')+' '+(p.title||''));
-    return /(3|uc|üç)\s*yatir(i|ı)m/.test(s);
-  }
-  function isWinningsOnlyPreset(p){
-    const s=fold((p.short||'')+' '+(p.title||''));
-    return /freespin|free\s*spin|bonus\s*buy/.test(s);
-  }
-
-  $bonus.addEventListener('change', e=>{
-    const p=PRESETS[+e.target.value];
-    const isThree=isThreeInvestmentPreset(p);
-    const isWinOnly=isWinningsOnlyPreset(p);
-
-    $threeBox.classList.toggle('hidden', !isThree);
-    $deposit.disabled = isThree || isWinOnly;
-    $deposit.placeholder = (isThree||isWinOnly) ? 'Bu bonus için yatırım alanı kullanılmaz' : 'örn. 5000 veya 1.2k';
-    $status.textContent = isWinOnly ? "Bu bonus için sadece 'Kazanç/Bonus TL' girin." : '';
-
-    // Doğum günü: otomatik 1000 TL
-    if(fold(p.short+p.title).includes('dogum') && fold(p.short+p.title).includes('gun')){
-      $winnings.value='1000';
-    }
-  });
-
-  document.getElementById('calc').addEventListener('click', ()=>{
-    const preset=PRESETS[+$bonus.value];
-    const domain=$domain.value;
-    const depInput=toNumber($deposit.value);
-    const pctIn=parsePercentInput($percent.value);
-    const winIn=toNumber($winnings.value);
-
-    $results.innerHTML=''; $status.textContent='';
-
-    // Doğum Günü — çevrimsiz
-    const isBday = fold(preset.short+preset.title).includes('dogum') && fold(preset.short+preset.title).includes('gun');
-    if(isBday){
-      const gift=1000;
-      $results.innerHTML = `
-        <div class='glass rounded-2xl p-5'>
-          <div class='text-lg font-bold'>🎉 ${preset.title}</div>
-          <div class='mt-2'>🎁 Hediye: <b>${TL(gift)}</b> — ✅ Çevrim yok.</div>
-          <div class='mt-2'>🎯 Slot alanında <b>2.500 TL</b> yapıp çekebilir.</div>
-          <div class='text-white/70 text-sm mt-2'>📝 Son 3 ayda en az <b>1.000 TL</b> yatırımı olması gereklidir.</div>
-        </div>`;
-      return;
-    }
-
-    const isThree = isThreeInvestmentPreset(preset);
-    const isWinOnly = isWinningsOnlyPreset(preset);
-
-    // 3 yatırım ortalaması
-    if(isThree){
-      const t1=toNumber($three1.value), t2=toNumber($three2.value), t3=toNumber($three3.value);
-      if(!(t1>0 && t2>0 && t3>0)){ $status.textContent='3 yatırımın hepsini girin (örn. 1000 2000 3000).'; return; }
-      const avg = Math.floor((t1+t2+t3)/3);
-      const resolver=dom=>computeWithBonus(preset,dom,0,avg);
-      const pairs=(domain==='all')?computeAll(preset,avg,resolver):[[domain,resolver(domain)]];
-      const title = `${preset.title} — Hediye (ortalama): ${TL(avg)}`;
-      const subtitle = `1: ${TL(t1)} • 2: ${TL(t2)} • 3: ${TL(t3)}  → Ortalama: ${TL(avg)}`;
-      renderCards(pairs,{title, subtitle});
-      return;
-    }
-
-    // Öncelik: Kazanç/Bonus girildiyse (Freespin/BonusBuy yatırım istemiyor)
-    if(winIn>0){
-      const dep = isWinOnly ? 0 : depInput;
-      const resolver=dom=>computeWithBonus(preset,dom,dep,winIn);
-      const pairs=(domain==='all')?computeAll(preset,dep,resolver):[[domain,resolver(domain)]];
-      const title = `${preset.title} — Kazanç/Bonus: ${TL(winIn)}`;
-      const subtitle = isWinOnly ? 'Yatırım gerekmiyor' : `Yatırım: ${TL(dep)}`;
-      renderCards(pairs,{title, subtitle});
-      return;
-    }
-
-    // Freespin/BonusBuy ise kazanç zorunlu
-    if(isWinOnly){ $status.textContent = "Bu bonus için 'Kazanç/Bonus TL' girmeniz gerekir."; return; }
-
-    // Diğerlerinde yatırım zorunlu
-    if(!depInput){ $status.textContent='Lütfen yatırım girin.'; return; }
-    const dep = depInput;
-
-    // yüzde -> hesap
-    let pct = pctIn ?? percentHeuristic(preset);
-    if(pct==null){ $status.textContent = "Yüzde bulunamadı — yüzde yazın ya da 'Kazanç/Bonus TL' girin."; return; }
-    const resolver=dom=>computePercent(preset,dom,dep,pct);
-    const pairs=(domain==='all')?computeAll(preset,dep,resolver):[[domain,resolver(domain)]];
-    const title = `${preset.title} — %${parseInt(pct)}`;
-    renderCards(pairs,{title, subtitle:`Yatırım: ${TL(dep)}`});
-
-    function renderCards(pairs, header, extraNoteHTML=''){
-      const chips = (p)=>[
-        p.min_deposit?`<span class='chip'>Min: ${p.min_deposit}</span>`:'',
-        p.max_bonus?`<span class='chip'>Max bonus: ${p.max_bonus}</span>`:'',
-        p.max_withdraw?`<span class='chip'>Max çekim: ${p.max_withdraw}</span>`:''
-      ].filter(Boolean).join(' ');
-
-      const cards = pairs.map(([dom,r])=>{
-        if(r.error){
-          return `<div class='glass rounded-2xl p-5'>
-            <div class='font-semibold'>${icon[dom]} ${dom.toUpperCase()}</div>
-            <div class='mt-2 text-rose-300'>${r.error}</div></div>`;
-        }
-        const raw=r.rule_raw?`<div class='text-xs text-white/60 mt-2'>🧩 ${r.rule_raw}</div>`:'';
-        return `<div class='glass rounded-2xl p-5'>
-          <div class='font-semibold'>${icon[dom]} ${dom.toUpperCase()}</div>
-          <div class='mt-2'>Baz: <b>${TL(r.base)}</b> • x${r.multiplier||'—'} → ✅ <b>${TL(r.required)}</b></div>
-          <div class='mt-3 flex flex-wrap gap-2'>${chips(preset)}</div>
-          ${raw}
-        </div>`;
-      }).join('');
-      $results.innerHTML = `
-        <div class='glass rounded-2xl p-5'>
-          <div class='text-lg font-bold'>${header.title}</div>
-          <div class='text-white/70 text-sm'>${header.subtitle||''}</div>
-          ${extraNoteHTML||''}
+          <div id="threeBox" class="hidden">
+            <label class="block text-sm font-medium mb-1">3 Yatırım</label>
+            <input id="three" class="inp" placeholder="1000 1500 2000  |  toplam 6000">
+          </div>
         </div>
-        <div class='grid grid-cols-1 md:grid-cols-2 gap-4 mt-2'>${cards}</div>`;
-    }
+
+        <div class="mt-5 flex items-center gap-3">
+          <button id="calc" class="btn">Hesapla</button>
+          <span id="status" class="muted text-sm"></span>
+        </div>
+      </section>
+
+      <!-- Results -->
+      <section id="results" class="space-y-4"></section>
+    </main>
+  </div>
+
+  <!-- SCRIPTS -->
+  <script>
+  /* ==================== BASİT KİMLİK DOĞRULAMA ==================== */
+  // ⚠️ İstediğiniz gibi değiştirin:
+  const AUTH_USER = 'admin';
+  const AUTH_PASS = 'admin';
+  const STORAGE_KEY = 'zbahis-auth';
+
+  const $ = sel => document.querySelector(sel);
+
+  function isAuthenticated(){
+    try{
+      const raw = localStorage.getItem(STORAGE_KEY) || sessionStorage.getItem(STORAGE_KEY);
+      if(!raw) return false;
+      const {u,p} = JSON.parse(raw);
+      return u===AUTH_USER && p===AUTH_PASS;
+    }catch(e){ return false; }
+  }
+  function saveAuth(remember, u, p){
+    const payload = JSON.stringify({u,p});
+    if(remember) localStorage.setItem(STORAGE_KEY, payload);
+    else sessionStorage.setItem(STORAGE_KEY, payload);
+  }
+  function clearAuth(){
+    localStorage.removeItem(STORAGE_KEY);
+    sessionStorage.removeItem(STORAGE_KEY);
+  }
+
+  $('#togglePass').addEventListener('click', (e)=>{
+    e.preventDefault();
+    const inp = $('#loginPass');
+    const isPw = inp.type === 'password';
+    inp.type = isPw ? 'text' : 'password';
+    e.currentTarget.textContent = isPw ? 'Gizle' : 'Göster';
   });
 
-  // ---- Basit Smoke testleri ----
-  (function selfTest(){
-    console.assert(Array.isArray(PRESETS) && PRESETS.length >= 10, 'PRESETS eksik görünüyor.');
-    const sel = document.getElementById('bonus');
-    console.assert(sel, 'Bonus select bulunamadı.');
+  async function handleLogin(){
+    const u = $('#loginUser').value.trim();
+    const p = $('#loginPass').value;
+    const remember = $('#rememberMe').checked;
+    const stat = $('#loginStatus');
+
+    stat.textContent = '';
+    if(!u || !p){
+      stat.textContent = 'Kullanıcı adı / şifre gerekli.';
+      return;
+    }
+    if(u===AUTH_USER && p===AUTH_PASS){
+      saveAuth(remember, u, p);
+      // UI geçişi
+      $('#loginOverlay').classList.add('hidden');
+      $('#app').classList.remove('hidden');
+      // Uygulamayı başlat
+      await boot();
+    }else{
+      stat.textContent = 'Hatalı kullanıcı adı veya şifre.';
+    }
+  }
+
+  $('#loginBtn').addEventListener('click', handleLogin);
+  $('#loginPass').addEventListener('keydown', (e)=>{ if(e.key==='Enter') handleLogin(); });
+  $('#loginUser').addEventListener('keydown', (e)=>{ if(e.key==='Enter') handleLogin(); });
+
+  // Sayfa açılışında otomatik kontrol
+  (async function(){
+    if(isAuthenticated()){
+      $('#loginOverlay').classList.add('hidden');
+      $('#app').classList.remove('hidden');
+      await boot();
+    }else{
+      // Odak
+      setTimeout(()=>$('#loginUser').focus(), 50);
+    }
   })();
 
-  // Init
-  fillBonusSelect();
+  /* ==================== BONUS HESAPLAMA KODLARINIZ ==================== */
+  // (Aşağıdaki bölüm sizin gönderdiğiniz hesaplama mantığının aynısıdır)
+
+  const TL = n => new Intl.NumberFormat('tr-TR').format(Math.floor(n)) + " TL";
+  const fold = t => (t||"").toString().normalize("NFKD")
+    .replace(/[çÇ]/g,"c").replace(/[ğĞ]/g,"g").replace(/[ıİ]/g,"i")
+    .replace(/[öÖ]/g,"o").replace(/[şŞ]/g,"s").replace(/[üÜ]/g,"u").toLowerCase();
+  function toNumber(str){ if(!str) return 0; let s=String(str).trim().toLowerCase().replace("tl","").replace("₺","");
+    if(/^\d+(\.\d+)?k$/.test(s)) return parseFloat(s)*1000;
+    s=s.replace(/\./g,"").replace(",","."); const m=s.match(/(\d+(?:\.\d+)?)/); return m?parseFloat(m[1]):0; }
+  function parsePercentInput(v){ if(!v) return null; const t=fold(v); const m=t.match(/%?\s*(\d{1,3})/); return m?parseFloat(m[1]):null; }
+  function parseNumbersFree(text){ const out=[]; for(const m of text.matchAll(/(\d+(?:[.,]\d+)?)\s*k\b/gi)) out.push(parseFloat(m[1].replace(",","."))*1000);
+    for(const m of text.matchAll(/\d+(?:[.,]\d+)?/g)) out.push(parseFloat(m[0].replace(".","").replace(",","."))); return out; }
+
+  function norm(s){ return (s||"").toString().toLowerCase().replace(/×/g,"x").replace(/\s+/g,""); }
+  function parseRuleCell(cell){
+    if(cell==null || (typeof cell==="number"&&Number.isNaN(cell))) return {basis:"NONE",multiplier:0,dep_mult:null,bonus_mult:null,raw:""};
+    const s=String(cell).trim(), n=norm(s);
+    if(n==="x"||n==="✗"||n.includes("yok")) return {basis:"NONE",multiplier:0,dep_mult:null,bonus_mult:null,raw:s};
+    if(n.includes("cevrimsiz")||n.includes("çevrimsiz")) return {basis:"BONUS",multiplier:0,dep_mult:null,bonus_mult:null,raw:s};
+    let m=n.match(/yat[ıi]r[ıi]mx?(\d+)\+bonusx?(\d+)/); if(m) return {basis:"COMBO",multiplier:0,dep_mult:+m[1],bonus_mult:+m[2],raw:s};
+    const n2=s.toLowerCase().replace(/\s+/g,"");
+    if((n2.includes("freespin")&&n2.includes("kazanc"))||(n2.includes("bonusbuy")&&n2.includes("kazanc"))){
+      const k=n2.split("kazanc")[1].match(/x?(\d+)/); if(k) return {basis:"DEPOSIT_PLUS_BONUS",multiplier:+k[1],dep_mult:null,bonus_mult:null,raw:s};
+    }
+    m=n.match(/toplam(bakiye|baz|balance)x?(\d+)/); if(m) return {basis:"DEPOSIT_PLUS_BONUS",multiplier:+m[2],dep_mult:null,bonus_mult:null,raw:s};
+    m=n.match(/yat[ıi]r[ıi]m\+?bonusx?(\d+)/); if(m) return {basis:"DEPOSIT_PLUS_BONUS",multiplier:+m[1],dep_mult:null,bonus_mult:null,raw:s};
+    if(/yat[ıi]r[ıi]m[ıi]n?1kat[ıi]/.test(n)||/1x*yat[ıi]r[ıi]m/.test(n)||/yat[ıi]r[ıi]m1x*/.test(n)||/yat[ıi]r[ıi]m%*100/.test(n)) return {basis:"DEPOSIT",multiplier:1,dep_mult:null,bonus_mult:null,raw:s};
+    m=n.match(/yat[ıi]r[ıi]mx?(\d+)/); if(m) return {basis:"DEPOSIT",multiplier:+m[1],dep_mult:null,bonus_mult:null,raw:s};
+    m=n.match(/(?:^|[^a-z])(bonus)x?(\d+)/); if(m) return {basis:"BONUS",multiplier:+m[2],dep_mult:null,bonus_mult:null,raw:s};
+    return {basis:"NONE",multiplier:0,dep_mult:null,bonus_mult:null,raw:s};
+  }
+
+  function percentFromTitleOrShort(p){
+    for(const t of [p.title,p.short]){ if(!t) continue;
+      const m=t.match(/%\s*(\d{1,3})/); if(m) return +m[1];
+      if(/limitsiz/i.test(t)){ const m2=t.match(/\b(\d{1,3})\b/); if(m2) return +m2[1]; }
+    } return null;
+  }
+  function percentDefaultOverride(p){ const n=fold((p.short||p.title||"")); if(n.includes("ilk yatirim")) return 100; return null; }
+  function percentSpecificOverride(p){
+    const n=fold((p.short||p.title||""));
+    if(n.includes("ayricalikli")&&n.includes("gun")) return 25;
+    if(n.includes("challenge")) return 25;
+    if(n.includes("her gun bonus")) return 100;
+    return null;
+  }
+  function percentFromTieredNotes(p,deposit){
+    const notes=p.notes||""; if(!notes) return null; const t=notes.replace(/[—–]/g,"-"); const ranges=[];
+    for(const m of t.matchAll(/(\d[\d\.\,]*)\s*-\s*(\d[\d\.\,]*)[^%]*%\s*(\d{1,3})/g)){ ranges.push({lo:toNumber(m[1]),hi:toNumber(m[2]),pc:+m[3]}); }
+    for(const m of t.matchAll(/(\d[\d\.\,]*)\s*(?:tl)?\s*\+\s*[^%]*%\s*(\d{1,3})/gi)){ ranges.push({lo:toNumber(m[1]),hi:Infinity,pc:+m[2]}); }
+    if(!ranges.length) return null;
+    for(const r of ranges){ if(r.lo<=deposit && deposit<=r.hi) return r.pc; }
+    const plus=ranges.filter(r=>r.hi===Infinity).map(r=>r.pc); return plus.length?Math.max(...plus):null;
+  }
+  function birthdayGift(p){ const n=fold((p.short||p.title||"")); return (n.includes("dogum")&&n.includes("gun"))?1000:null; }
+
+  function parseMaxBonusValue(s){ if(!s) return null; const t=s.trim().toLowerCase(); if(t.includes("limit yok")||t.includes("limitsiz")||t==="-" ) return null; const v=toNumber(t); return v>0?v:null; }
+  function parseMinDepositValue(s){ const v=toNumber(s); return v>0?v:null; }
+
+  function computeWithBonus(preset,domain,deposit,bonusAmount,opts={}){
+    const rule=preset.rules[domain]; if(!rule||rule.basis==="NONE") return {error:`Bu bonus '${domain}' alanında geçersiz.`};
+    let bonusCap = parseMaxBonusValue(preset.max_bonus);
+    if(opts.extraBonusCap!=null){ bonusCap = (bonusCap==null) ? opts.extraBonusCap : Math.min(bonusCap, opts.extraBonusCap); }
+    if(bonusCap!=null && bonusAmount>bonusCap) bonusAmount=bonusCap;
+
+    let base=0,mult=0,required=0,combo=null;
+    if(rule.basis==="COMBO"){
+      required=(deposit*(rule.dep_mult||0))+(bonusAmount*(rule.bonus_mult||0));
+      base=deposit+bonusAmount; combo=[rule.dep_mult,rule.bonus_mult];
+    }else{
+      mult=+rule.multiplier;
+      if(mult===0){ base=0; required=0; }
+      else{
+        if(rule.basis==="BONUS"){ base=bonusAmount; }
+        else if(rule.basis==="DEPOSIT"){ base=deposit; }
+        else {
+          let depPart = deposit;
+          const isYatirimFS = fold(preset.short+preset.title).includes("yatirim fs");
+          if(isYatirimFS && opts.capDepositPart!=null) depPart = Math.min(depPart, opts.capDepositPart);
+          base = depPart + bonusAmount;
+        }
+        required = base * mult;
+      }
+    }
+    return {domain,deposit:Math.floor(deposit),bonus:Math.floor(bonusAmount),base:Math.floor(base),multiplier:mult,required:Math.floor(required),rule_raw:rule.raw,combo};
+  }
+
+  function computePercent(preset,domain,deposit,percent,opts={}){
+    let bonus=deposit*(percent/100);
+    let cap = parseMaxBonusValue(preset.max_bonus);
+    if(opts.extraBonusCap!=null){ cap = (cap==null)?opts.extraBonusCap:Math.min(cap, opts.extraBonusCap); }
+    if(cap!=null && bonus>cap) bonus=cap;
+    return computeWithBonus(preset,domain,deposit,bonus,opts);
+  }
+
+  function computeAll(preset,deposit,resolver){
+    const out=[]; for(const dom of ["spor","casino","slot","ucak"]){
+      const r=preset.rules[dom]; if(!r||r.basis==="NONE") continue; out.push([dom,resolver(dom)]);
+    } return out;
+  }
+
+  const state={presets:{},order:[]};
+  async function loadCSV(){ return new Promise((res,rej)=>Papa.parse("bonus_kurallari_kisaisim.csv",{download:true,header:true,skipEmptyLines:true,complete:res,error:rej})); }
+  function buildPresets(rows){
+    const col = name => Object.keys(rows[0]).find(c=>fold(c)===fold(name)) || Object.keys(rows[0]).find(c=>fold(c).includes(fold(name)));
+    const C={ title:col("Bonus Adı"), short:col("Kısa İsim"), spor:col("Spor Çevirim"), casino:col("Casino Çevirim"), slot:col("Slot Çevirim"),
+      ucak: col("Uçak / Özel Oyun Çevirim")||col("Uçak Oyunu")||col("Uçak"),
+      min:col("Min. Yatırım"), maxb:col("Yatırım / Max. Bonus")||col("Max. Bonus"), maxw:col("Max. Çekim"), notes:col("Özel Kurallar") };
+    const presets={}, order=[];
+    for(const r of rows){
+      const p={ title:r[C.title]||"", short:(r[C.short]||r[C.title]||"").toString().trim(),
+        rules:{ spor:parseRuleCell(r[C.spor]), casino:parseRuleCell(r[C.casino]), slot:parseRuleCell(r[C.slot]), ucak:parseRuleCell(r[C.ucak]) },
+        min_deposit:(r[C.min]||"").toString().trim()||null, max_bonus:(r[C.maxb]||"").toString().trim()||null, max_withdraw:(r[C.maxw]||"").toString().trim()||null, notes:(r[C.notes]||"").toString().trim()||null };
+      presets[p.short]=p; order.push(p.short);
+    }
+    state.presets=presets; state.order=order.sort((a,b)=>{
+      const aa=(presets[a].title||a), bb=(presets[b].title||b);
+      return fold(aa).localeCompare(fold(bb));
+    });
+  }
+
+  function fillBonusSelect(){
+    const sel=document.getElementById("bonus");
+    sel.innerHTML=state.order.map(k=>{
+      const p=state.presets[k]; const label=p.title||p.short||k;
+      return `<option value="${k}">${label}</option>`;
+    }).join("");
+    sel.dispatchEvent(new Event("change"));
+  }
+
+  document.getElementById("bonus").addEventListener("change", e=>{
+    const key=e.target.value;
+    const preset=state.presets[key];
+    const isThree=fold(preset.short+preset.title).includes("3 yatirim");
+    document.getElementById("threeBox").classList.toggle("hidden", !isThree);
+
+    const isBday = fold(preset.short+preset.title).includes("dogum") && fold(preset.short+preset.title).includes("gun");
+    if(isBday){ document.getElementById("winnings").value = "1000"; }
+  });
+
+  document.getElementById("calc").addEventListener("click", ()=>{
+    const key=document.getElementById("bonus").value;
+    const preset=state.presets[key]; if(!preset) return;
+
+    const domain=document.getElementById("domain").value;
+    const percentIn=parsePercentInput(document.getElementById("percent").value);
+    const winningsIn=toNumber(document.getElementById("winnings").value);
+    const deposit=toNumber(document.getElementById("deposit").value);
+    const resultsDiv=document.getElementById("results"); resultsDiv.innerHTML=""; document.getElementById("status").textContent="";
+
+    const isBday = !!birthdayGift(preset);
+    const isDaily = fold(preset.short+preset.title).includes("her gun bonus");
+    const isYatirimFS = fold(preset.short+preset.title).includes("yatirim fs");
+
+    if(isBday){
+      const gift=1000;
+      resultsDiv.innerHTML = `
+        <div class="card glass">
+          <div class="text-lg font-semibold">🎉 ${preset.title || preset.short}</div>
+          <div class="mt-2">🎁 Hediye: <b>${TL(gift)}</b> — ✅ Çevrim yok.</div>
+          <div class="mt-2">🎯 Slot alanında <b>2.500 TL</b> yapıp çekebilir.</div>
+          <div class="muted text-sm mt-2">📝 Son 3 ayda en az <b>1.000 TL</b> yatırımı olması gereklidir.</div>
+        </div>`;
+      return;
+    }
+
+    if(!deposit){ document.getElementById("status").textContent="Lütfen yatırım girin."; return; }
+
+    const icon={spor:"⚽",casino:"🎰",slot:"🧩",ucak:"✈️"};
+    const mindep=parseMinDepositValue(preset.min_deposit);
+
+    function renderCards(pairs, header, extraNoteHTML=""){
+      const cards=pairs.map(([dom,r])=>{
+        if(r.error) return `<div class="card glass"><div class="font-semibold">${icon[dom]} ${dom.toUpperCase()}</div><div class="mt-2 text-rose-300">${r.error}</div></div>`;
+        const chips=[
+          preset.min_deposit?`<span class="chip">Min: ${preset.min_deposit}</span>`:"",
+          preset.max_bonus?`<span class="chip">Max bonus: ${preset.max_bonus}</span>`:"",
+          preset.max_withdraw?`<span class="chip">Max çekim: ${preset.max_withdraw}</span>`:""
+        ].filter(Boolean).join(" ");
+        const combo=r.combo?`<div class="raw">Kombine: Yatırım×${r.combo[0]} + Bonus×${r.combo[1]}</div>`:"";
+        const raw=r.rule_raw?`<div class="raw">🧩 ${r.rule_raw}</div>`:"";
+        return `<div class="card glass">
+          <div class="font-semibold">${icon[dom]} ${dom.toUpperCase()}</div>
+          <div class="mt-2">Baz: <b>${TL(r.base)}</b> • x${r.multiplier||"—"} → ✅ <b>${TL(r.required)}</b></div>
+          <div class="mt-2 flex flex-wrap gap-2">${chips}</div>
+          ${combo}${raw}
+        </div>`;
+      }).join("");
+      document.getElementById("results").innerHTML = `
+        <div class="card glass">
+          <div class="text-lg font-semibold">${header.title}</div>
+          <div class="muted">${header.subtitle}</div>
+          ${extraNoteHTML}
+        </div>
+        <div class="grid-cards">${cards}</div>
+        ${mindep && deposit<mindep ? `<div class="muted text-sm">⚠️ Min. yatırım ${TL(mindep)} (girilen ${TL(deposit)} altında)</div>`:""}
+      `;
+    }
+
+    const optsBase = {
+      extraBonusCap: isDaily ? 2000 : null,
+      capDepositPart: isYatirimFS ? 1000 : null
+    };
+
+    if(winningsIn>0){
+      const resolver=dom=>computeWithBonus(preset,dom,deposit,winningsIn,optsBase);
+      const pairs=(domain==="all")?computeAll(preset,deposit,resolver):[[domain,resolver(domain)]];
+      const title = `${preset.title || preset.short} — Kazanç/Bonus: ${TL(winningsIn)}${isYatirimFS?' (Yatırım katkısı max 1.000 TL)':''}`;
+      const note = isYatirimFS ? `<div class="raw mt-2">ℹ️ Yatırım kısmı en fazla <b>1.000 TL</b> olarak baz alınır.</div>` : "";
+      renderCards(pairs,{title, subtitle:`Yatırım: ${TL(deposit)}`}, note);
+      return;
+    }
+
+    let pct = percentIn ?? percentSpecificOverride(preset) ?? percentDefaultOverride(preset) ?? percentFromTitleOrShort(preset) ?? percentFromTieredNotes(preset,deposit);
+    if(pct==null){ document.getElementById("status").textContent="Yüzde bulunamadı — yüzde yazın ya da 'Kazanç/Bonus TL' girin."; return; }
+
+    const resolver=dom=>computePercent(preset,dom,deposit,pct,optsBase);
+    const pairs=(domain==="all")?computeAll(preset,deposit,resolver):[[domain,resolver(domain)]];
+    const title = `${preset.title || preset.short} — %${parseInt(pct)}${isDaily?' (Max 2.000 TL)':''}${isYatirimFS?' (Yatırım katkısı max 1.000 TL)':''}`;
+    const note = isYatirimFS ? `<div class="raw mt-2">ℹ️ Yatırım kısmı en fazla <b>1.000 TL</b> olarak baz alınır.</div>` : "";
+    renderCards(pairs,{title, subtitle:`Yatırım: ${TL(deposit)}`}, note);
+  });
+
+  async function boot(){
+    try{
+      const parse=await loadCSV();
+      await buildPresets(parse.data);
+      fillBonusSelect();
+    }catch(e){
+      document.getElementById("status").textContent="CSV yüklenemedi: "+e;
+    }
+  }
   </script>
 </body>
 </html>
